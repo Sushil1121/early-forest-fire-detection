@@ -28,6 +28,21 @@
       background-color: #f8d7da;
       color: #721c24;
     }
+    table {
+      background: white;
+      border-collapse: collapse;
+      margin-top: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    table th, table td {
+      padding: 12px 20px;
+      border: 1px solid #ccc;
+    }
+    table th {
+      background-color: #f4f4f4;
+    }
     canvas {
       background: #fff;
       border-radius: 10px;
@@ -40,6 +55,32 @@
 </head>
 <body>
   <h2>🌲 Forest Fire Detection Dashboard</h2>
+  
+  <!-- Threshold Table -->
+  <h3>🔥 Predefined Thresholds</h3>
+  <table>
+    <tr>
+      <th>Parameter</th>
+      <th>Safe Range</th>
+      <th>Fire Risk If...</th>
+    </tr>
+    <tr>
+      <td>Methane (MQ-4)</td>
+      <td>&lt; 600</td>
+      <td>&gt; 600</td>
+    </tr>
+    <tr>
+      <td>CO₂ (MQ-135)</td>
+      <td>&lt; 550</td>
+      <td>&gt; 550</td>
+    </tr>
+    <tr>
+      <td>Temperature (°C)</td>
+      <td>&lt; 45</td>
+      <td>&gt; 45</td>
+    </tr>
+  </table>
+
   <div id="alertBox" class="alert safe">Status: Safe</div>
 
   <canvas id="methaneChart"></canvas>
@@ -47,6 +88,10 @@
 
   <script>
     const SHEET_URL = "https://script.google.com/macros/s/AKfycbyNdTK-y4D7NQeCoGz_Id1rB49foyIvsVumP2mb5uPeO0MUeB8YLECWvsXyUAf3VGYm/exec";
+
+    // Thresholds (same as used in ESP32 code)
+    const METHANE_THRESHOLD = 600;
+    const CO2_THRESHOLD = 550;
 
     async function fetchData() {
       try {
@@ -70,7 +115,7 @@
           latestAlert = data[i][3];
         }
 
-        updateAlert(latestAlert);
+        updateAlert(latestAlert, methaneValues.at(-1), co2Values.at(-1));
         renderChart("methaneChart", "Methane (MQ-4)", timestamps, methaneValues, 'orange');
         renderChart("co2Chart", "CO2 (MQ-135)", timestamps, co2Values, 'blue');
 
@@ -81,15 +126,19 @@
       }
     }
 
-    function updateAlert(alert) {
+    function updateAlert(alert, lastMethane, lastCO2) {
       const alertBox = document.getElementById("alertBox");
-      if (alert === "YES") {
-        alertBox.textContent = "🔥 Fire Alert Detected!";
-        alertBox.className = "alert danger";
-      } else {
-        alertBox.textContent = "✅ Status: Safe";
-        alertBox.className = "alert safe";
+
+      let statusMsg = `✅ Status: Safe`;
+      let statusClass = "alert safe";
+
+      if (lastMethane > METHANE_THRESHOLD || lastCO2 > CO2_THRESHOLD || alert === "YES") {
+        statusMsg = `🔥 Fire Risk Detected! (MQ-4: ${lastMethane}, MQ-135: ${lastCO2})`;
+        statusClass = "alert danger";
       }
+
+      alertBox.textContent = statusMsg;
+      alertBox.className = statusClass;
     }
 
     function renderChart(canvasId, label, labels, data, color) {
