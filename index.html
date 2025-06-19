@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Forest Fire Detection</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      background: #f0f0f0;
+      padding: 20px;
+    }
+    h2 {
+      color: #333;
+    }
+    .alert {
+      font-size: 24px;
+      font-weight: bold;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      width: fit-content;
+    }
+    .safe {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .danger {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    canvas {
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px;
+      margin-top: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 700px;
+    }
+  </style>
+</head>
+<body>
+  <h2>🌲 Forest Fire Detection Dashboard</h2>
+  <div id="alertBox" class="alert safe">Status: Safe</div>
+
+  <canvas id="methaneChart"></canvas>
+  <canvas id="co2Chart"></canvas>
+
+  <script>
+    const SHEET_URL = "https://script.google.com/macros/s/AKfycbyNdTK-y4D7NQeCoGz_Id1rB49foyIvsVumP2mb5uPeO0MUeB8YLECWvsXyUAf3VGYm/exec";
+
+    async function fetchData() {
+      try {
+        const response = await fetch(SHEET_URL);
+        const data = await response.json();
+
+        if (!Array.isArray(data) || data.length <= 1) {
+          console.error("No data found");
+          return;
+        }
+
+        const timestamps = [];
+        const methaneValues = [];
+        const co2Values = [];
+        let latestAlert = "NO";
+
+        for (let i = 1; i < data.length; i++) {
+          timestamps.push(new Date(data[i][0]).toLocaleTimeString());
+          methaneValues.push(Number(data[i][1]));
+          co2Values.push(Number(data[i][2]));
+          latestAlert = data[i][3];
+        }
+
+        updateAlert(latestAlert);
+        renderChart("methaneChart", "Methane (MQ-4)", timestamps, methaneValues, 'orange');
+        renderChart("co2Chart", "CO2 (MQ-135)", timestamps, co2Values, 'blue');
+
+      } catch (err) {
+        console.error("Fetch error: ", err);
+        document.getElementById("alertBox").textContent = "Error loading data!";
+        document.getElementById("alertBox").className = "alert danger";
+      }
+    }
+
+    function updateAlert(alert) {
+      const alertBox = document.getElementById("alertBox");
+      if (alert === "YES") {
+        alertBox.textContent = "🔥 Fire Alert Detected!";
+        alertBox.className = "alert danger";
+      } else {
+        alertBox.textContent = "✅ Status: Safe";
+        alertBox.className = "alert safe";
+      }
+    }
+
+    function renderChart(canvasId, label, labels, data, color) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      if (window[canvasId + "_instance"]) {
+        window[canvasId + "_instance"].destroy();
+      }
+      window[canvasId + "_instance"] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: label,
+            data: data,
+            borderColor: color,
+            backgroundColor: color + '33',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    fetchData();
+    setInterval(fetchData, 10000); // Update every 10 seconds
+  </script>
+</body>
+</html>
