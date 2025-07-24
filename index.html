@@ -1,184 +1,93 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Forest Fire Detection</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #e0f7fa, #fff3e0);
-      padding: 20px;
-      color: #333;
-    }
-    h2 {
-      color: #2e7d32;
-    }
-    .alert {
-      font-size: 20px;
-      font-weight: bold;
-      padding: 15px;
-      border-radius: 10px;
-      margin: 20px 0;
-      display: inline-block;
-    }
-    .safe {
-      background-color: #d4edda;
-      color: #155724;
-    }
-    .danger {
-      background-color: #f8d7da;
-      color: #721c24;
-    }
-    table {
-      width: 100%;
-      background: white;
-      border-collapse: collapse;
-      margin-top: 20px;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    table th, table td {
-      padding: 12px;
-      border: 1px solid #ccc;
-      text-align: center;
-    }
-    table th {
-      background-color: #eeeeee;
-    }
-    canvas {
-      background: #fff;
-      border-radius: 10px;
-      padding: 10px;
-      margin-top: 30px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 700px;
-    }
-  </style>
-</head>
-<body>
-  <h2>🌲 Forest Fire Detection Dashboard</h2>
+<!-- Inside your <script> tag -->
+<script>
+  const SHEET_URL = "https://script.google.com/macros/s/AKfycbyNdTK-y4D7NQeCoGz_Id1rB49foyIvsVumP2mb5uPeO0MUeB8YLECWvsXyUAf3VGYm/exec";
 
-  <h3>🔥 Predefined Thresholds</h3>
-  <table>
-    <tr>
-      <th>Parameter</th>
-      <th>Safe Range</th>
-      <th>Fire Risk If...</th>
-    </tr>
-    <tr>
-      <td>Methane (MQ-4)</td>
-      <td>&lt; 3000</td>
-      <td>&gt; 3000</td>
-    </tr>
-    <tr>
-      <td>CO₂ (MQ-135)</td>
-      <td>&lt; 2500</td>
-      <td>&gt; 2500</td>
-    </tr>
-    <tr>
-      <td>Temperature (°C)</td>
-      <td>&lt; 45</td>
-      <td>&gt; 45</td>
-    </tr>
-  </table>
+  const METHANE_THRESHOLD = 3000;
+  const CO2_THRESHOLD = 2500;
+  const TEMP_THRESHOLD = 45;
 
-  <div id="alertBox" class="alert safe">Status: Safe</div>
+  async function fetchData() {
+    try {
+      const response = await fetch(SHEET_URL);
+      const data = await response.json();
 
-  <canvas id="temperatureChart"></canvas>
-  <canvas id="methaneChart"></canvas>
-  <canvas id="co2Chart"></canvas>
-
-  <script>
-    const SHEET_URL = "https://script.google.com/macros/s/AKfycbyNdTK-y4D7NQeCoGz_Id1rB49foyIvsVumP2mb5uPeO0MUeB8YLECWvsXyUAf3VGYm/exec";
-
-    const METHANE_THRESHOLD = 3000;
-    const CO2_THRESHOLD = 2500;
-    const TEMP_THRESHOLD = 45;
-
-    async function fetchData() {
-      try {
-        const response = await fetch(SHEET_URL);
-        const data = await response.json();
-
-        if (!Array.isArray(data) || data.length <= 1) {
-          console.error("No data found");
-          return;
-        }
-
-        const timestamps = [];
-        const temperatureValues = [];
-        const methaneValues = [];
-        const co2Values = [];
-        let latestAlert = "NO";
-
-        for (let i = 1; i < data.length; i++) {
-          timestamps.push(new Date(data[i][0]).toLocaleTimeString());
-          temperatureValues.push(Number(data[i][1]));
-          methaneValues.push(Number(data[i][2]));
-          co2Values.push(Number(data[i][3]));
-          latestAlert = data[i][4];
-        }
-
-        updateAlert(latestAlert, methaneValues.at(-1), co2Values.at(-1), temperatureValues.at(-1));
-
-        renderChart("temperatureChart", "Temperature (°C)", timestamps, temperatureValues, 'red');
-        renderChart("methaneChart", "Methane (MQ-4)", timestamps, methaneValues, 'orange');
-        renderChart("co2Chart", "CO₂ (MQ-135)", timestamps, co2Values, 'blue');
-
-      } catch (err) {
-        console.error("Fetch error: ", err);
-        document.getElementById("alertBox").textContent = "Error loading data!";
-        document.getElementById("alertBox").className = "alert danger";
-      }
-    }
-
-    function updateAlert(alert, lastMethane, lastCO2, lastTemp) {
-      const alertBox = document.getElementById("alertBox");
-
-      let statusMsg = `✅ Status: Safe`;
-      let statusClass = "alert safe";
-
-      if (lastMethane > METHANE_THRESHOLD || lastCO2 > CO2_THRESHOLD || lastTemp > TEMP_THRESHOLD || alert === "YES") {
-        statusMsg = `🔥 Fire Risk Detected! (Temp: ${lastTemp}°C, MQ-4: ${lastMethane}, MQ-135: ${lastCO2})`;
-        statusClass = "alert danger";
+      if (!Array.isArray(data) || data.length <= 1) {
+        console.error("No data found");
+        return;
       }
 
-      alertBox.textContent = statusMsg;
-      alertBox.className = statusClass;
-    }
+      const timestamps = [];
+      const temperatureValues = [];
+      const methaneValues = [];
+      const co2Values = [];
+      let latestAlert = "NO";
 
-    function renderChart(canvasId, label, labels, data, color) {
-      const ctx = document.getElementById(canvasId).getContext('2d');
-      if (window[canvasId + "_instance"]) {
-        window[canvasId + "_instance"].destroy();
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+
+        // Ensure valid numeric conversion
+        timestamps.push(new Date(row[0]).toLocaleTimeString());
+        methaneValues.push(Number(row[1] || 0));
+        co2Values.push(Number(row[2] || 0));
+        temperatureValues.push(Number(row[3] || 0));
+        latestAlert = row[4];
       }
-      window[canvasId + "_instance"] = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: label,
-            data: data,
-            borderColor: color,
-            backgroundColor: color + '33',
-            fill: true,
-            tension: 0.4
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
-      });
+
+      updateAlert(latestAlert, methaneValues.at(-1), co2Values.at(-1), temperatureValues.at(-1));
+
+      renderChart("temperatureChart", "Temperature (°C)", timestamps, temperatureValues, 'red');
+      renderChart("methaneChart", "Methane (MQ-4)", timestamps, methaneValues, 'orange');
+      renderChart("co2Chart", "CO₂ (MQ-135)", timestamps, co2Values, 'blue');
+
+    } catch (err) {
+      console.error("Fetch error: ", err);
+      document.getElementById("alertBox").textContent = "Error loading data!";
+      document.getElementById("alertBox").className = "alert danger";
+    }
+  }
+
+  function updateAlert(alert, lastMethane, lastCO2, lastTemp) {
+    const alertBox = document.getElementById("alertBox");
+
+    let statusMsg = `✅ Status: Safe`;
+    let statusClass = "alert safe";
+
+    if (lastMethane > METHANE_THRESHOLD || lastCO2 > CO2_THRESHOLD || lastTemp > TEMP_THRESHOLD || alert === "YES") {
+      statusMsg = `🔥 Fire Risk Detected! (Temp: ${lastTemp}°C, MQ-4: ${lastMethane}, MQ-135: ${lastCO2})`;
+      statusClass = "alert danger";
     }
 
-    fetchData();
-    setInterval(fetchData, 10000); // Refresh every 10 sec
-  </script>
-</body>
-</html>
+    alertBox.textContent = statusMsg;
+    alertBox.className = statusClass;
+  }
+
+  function renderChart(canvasId, label, labels, data, color) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (window[canvasId + "_instance"]) {
+      window[canvasId + "_instance"].destroy();
+    }
+    window[canvasId + "_instance"] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: label,
+          data: data,
+          borderColor: color,
+          backgroundColor: color + '33',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  fetchData();
+  setInterval(fetchData, 10000); // Refresh every 10 sec
+</script>
