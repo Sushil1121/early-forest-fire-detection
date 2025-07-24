@@ -1,4 +1,3 @@
-<!-- Inside your <script> tag -->
 <script>
   const SHEET_URL = "https://script.google.com/macros/s/AKfycbyNdTK-y4D7NQeCoGz_Id1rB49foyIvsVumP2mb5uPeO0MUeB8YLECWvsXyUAf3VGYm/exec";
 
@@ -25,15 +24,24 @@
       for (let i = 1; i < data.length; i++) {
         const row = data[i];
 
-        // Ensure valid numeric conversion
-        timestamps.push(new Date(row[0]).toLocaleTimeString());
-        methaneValues.push(Number(row[1] || 0));
-        co2Values.push(Number(row[2] || 0));
-        temperatureValues.push(Number(row[3] || 0));
-        latestAlert = row[4];
+        const time = new Date(row[0]).toLocaleTimeString();
+        const methane = parseInt(row[1]) || 0;
+        const co2 = parseInt(row[2]) || 0;
+        const temperature = parseFloat(row[3]) || 0;
+        const alert = row[4];
+
+        timestamps.push(time);
+        methaneValues.push(methane);
+        co2Values.push(co2);
+        temperatureValues.push(temperature);
+        latestAlert = alert;
       }
 
-      updateAlert(latestAlert, methaneValues.at(-1), co2Values.at(-1), temperatureValues.at(-1));
+      const lastMethane = methaneValues.at(-1);
+      const lastCO2 = co2Values.at(-1);
+      const lastTemp = temperatureValues.at(-1);
+
+      updateAlert(latestAlert, lastMethane, lastCO2, lastTemp);
 
       renderChart("temperatureChart", "Temperature (°C)", timestamps, temperatureValues, 'red');
       renderChart("methaneChart", "Methane (MQ-4)", timestamps, methaneValues, 'orange');
@@ -41,8 +49,9 @@
 
     } catch (err) {
       console.error("Fetch error: ", err);
-      document.getElementById("alertBox").textContent = "Error loading data!";
-      document.getElementById("alertBox").className = "alert danger";
+      const alertBox = document.getElementById("alertBox");
+      alertBox.textContent = "Error loading data!";
+      alertBox.className = "alert danger";
     }
   }
 
@@ -82,12 +91,15 @@
       options: {
         responsive: true,
         scales: {
-          y: { beginAtZero: true }
+          y: {
+            beginAtZero: true,
+            suggestedMax: label.includes("Temperature") ? 100 : undefined
+          }
         }
       }
     });
   }
 
   fetchData();
-  setInterval(fetchData, 10000); // Refresh every 10 sec
+  setInterval(fetchData, 10000);
 </script>
