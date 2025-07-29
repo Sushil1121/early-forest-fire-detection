@@ -1,152 +1,120 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Forest Fire Detection Dashboard</title>
-  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <title>Forest Fire Alert System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #eef3f7;
-      color: #333;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f8ff;
       padding: 20px;
+      text-align: center;
     }
-
     h1 {
-      text-align: center;
-      color: #2e5c87;
+      color: #333;
     }
-
-    table {
-      margin: 0 auto 20px auto;
-      border-collapse: collapse;
-      width: 80%;
-      background: #fff;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-
-    th, td {
-      border: 1px solid #ccc;
-      padding: 12px;
-      text-align: center;
-    }
-
-    th {
-      background-color: #2e5c87;
-      color: white;
-    }
-
-    .alert-yes {
-      background-color: #ff4d4d;
-      color: white;
-      font-weight: bold;
-    }
-
-    .alert-no {
-      background-color: #28a745;
-      color: white;
-      font-weight: bold;
-    }
-
-    #chart_div {
-      width: 90%;
-      height: 400px;
-      margin: auto;
-    }
-
-    .compare {
-      text-align: center;
+    #alertBox {
+      font-size: 1.5rem;
+      padding: 10px;
+      border-radius: 10px;
       margin: 20px auto;
+      width: 300px;
+      font-weight: bold;
     }
-
-    .compare span {
-      display: inline-block;
-      margin: 10px 20px;
-      padding: 10px 20px;
-      background: #f0f0f0;
-      border-radius: 5px;
+    .alert-on {
+      background-color: red;
+      color: white;
     }
-
+    .alert-off {
+      background-color: green;
+      color: white;
+    }
+    canvas {
+      margin: 20px auto;
+      max-width: 600px;
+    }
   </style>
 </head>
 <body>
-  <h1>🌲 Forest Fire Detection Dashboard</h1>
+  <h1>🌲 Forest Fire Monitoring Dashboard</h1>
 
-  <div class="compare">
-    <h3>🔥 Dangerous Levels</h3>
-    <span><b>Methane:</b> > 3000</span>
-    <span><b>CO₂:</b> > 2500</span>
-    <span><b>Temperature:</b> > 45°C</span>
-  </div>
+  <div id="alertBox" class="alert-off">No Fire Risk Detected</div>
 
-  <table id="data-table">
-    <thead>
-      <tr>
-        <th>Timestamp</th>
-        <th>Methane</th>
-        <th>CO₂</th>
-        <th>Temperature (°C)</th>
-        <th>Fire Alert</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <div id="chart_div"></div>
+  <canvas id="methaneChart"></canvas>
+  <canvas id="co2Chart"></canvas>
 
   <script>
-    const sheetUrl = 'https://script.google.com/macros/s/AKfycbyNdTK-y4D7NQeCoGz_Id1rB49foyIvsVumP2mb5uPeO0MUeB8YLECWvsXyUAf3VGYm/exec';
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-cREwXrVtnlBW5-K-0UWRWUidi_UgjrH7RKIDLWGXQDjRGJP5LHF-Looifn6YXfZHr7PAjP8eeaU/pub?output=csv";
 
-    // Load Google Charts
-    google.charts.load('current', {'packages':['corechart']});
-    google.charts.setOnLoadCallback(fetchAndRender);
+    const methaneData = [];
+    const co2Data = [];
+    const labels = [];
 
-    function fetchAndRender() {
-      fetch(sheetUrl)
-        .then(res => res.json())
-        .then(data => {
-          const tbody = document.querySelector("#data-table tbody");
-          tbody.innerHTML = "";
+    const methaneChart = new Chart(document.getElementById("methaneChart"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Methane (MQ-4)",
+          backgroundColor: "rgba(255, 99, 132, 0.2)",
+          borderColor: "rgba(255, 99, 132, 1)",
+          data: methaneData,
+        }]
+      }
+    });
 
-          const tempData = [['Time', 'Temperature']];
-          data.reverse().slice(0, 10).forEach(row => {
-            const tr = document.createElement("tr");
+    const co2Chart = new Chart(document.getElementById("co2Chart"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "CO₂ (MQ-135)",
+          backgroundColor: "rgba(54, 162, 235, 0.2)",
+          borderColor: "rgba(54, 162, 235, 1)",
+          data: co2Data,
+        }]
+      }
+    });
 
-            const alertClass = row.alert === "YES" ? "alert-yes" : "alert-no";
+    async function fetchData() {
+      const response = await fetch(sheetURL);
+      const csv = await response.text();
+      const rows = csv.trim().split("\n").slice(1); // Skip header
 
-            tr.innerHTML = `
-              <td>${row.timestamp}</td>
-              <td>${row.methane}</td>
-              <td>${row.co2}</td>
-              <td>${row.temperature}</td>
-              <td class="${alertClass}">${row.alert}</td>
-            `;
+      const last10 = rows.slice(-10); // Only last 10 entries
+      methaneData.length = 0;
+      co2Data.length = 0;
+      labels.length = 0;
 
-            tbody.appendChild(tr);
+      last10.forEach(row => {
+        const cols = row.split(",");
+        const timestamp = cols[0];
+        const methane = parseInt(cols[1]);
+        const co2 = parseInt(cols[2]);
+        const alert = cols[3]?.trim();
 
-            // Prepare chart data
-            tempData.push([row.timestamp, parseFloat(row.temperature)]);
-          });
+        labels.push(timestamp.split(" ")[1]); // Time only
+        methaneData.push(methane);
+        co2Data.push(co2);
 
-          drawChart(tempData);
-        });
+        // Set alert box
+        const alertBox = document.getElementById("alertBox");
+        if (alert === "YES") {
+          alertBox.textContent = "🔥 Fire Risk Detected!";
+          alertBox.className = "alert-on";
+        } else {
+          alertBox.textContent = "✅ No Fire Risk Detected";
+          alertBox.className = "alert-off";
+        }
+      });
+
+      methaneChart.update();
+      co2Chart.update();
     }
 
-    function drawChart(dataArray) {
-      const data = google.visualization.arrayToDataTable(dataArray);
-      const options = {
-        title: 'Temperature Trend (Last 10 Entries)',
-        curveType: 'function',
-        legend: { position: 'bottom' },
-        colors: ['#e67300']
-      };
-
-      const chart = new google.visualization.LineChart(document.getElementById('chart_div'));
-      chart.draw(data, options);
-    }
-
-    // Refresh every 30 seconds
-    setInterval(fetchAndRender, 30000);
+    setInterval(fetchData, 5000); // Update every 5 sec
+    fetchData();
   </script>
 </body>
 </html>
