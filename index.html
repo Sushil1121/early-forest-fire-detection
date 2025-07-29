@@ -4,106 +4,92 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Forest Fire Alert System</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
-      background-color: #f0f4f8;
+      background: #f0f4f8;
+      margin: 0;
       padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+    h1 {
       text-align: center;
+      color: #2a7f62;
     }
-    h1 { color: #2c3e50; }
-    .card {
-      display: inline-block;
-      background: #fff;
-      border-radius: 12px;
-      padding: 20px;
-      margin: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      width: 200px;
-    }
-    .value {
-      font-size: 24px;
-      font-weight: bold;
+    .sensor {
+      margin: 20px 0;
+      font-size: 1.2rem;
     }
     .alert {
-      color: white;
-      background-color: red;
-      padding: 10px;
-      margin-top: 15px;
-      border-radius: 8px;
-      display: none;
+      padding: 20px;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+      border-radius: 10px;
     }
+    .safe { background-color: #c8f7c5; color: #2d6a4f; }
+    .warning { background-color: #fff3cd; color: #856404; }
+    .danger { background-color: #f8d7da; color: #721c24; }
   </style>
 </head>
 <body>
-  <h1>🔥 Forest Fire Detection Dashboard</h1>
-  <div id="data-cards">
-    <div class="card"><h3>Temperature (°C)</h3><div class="value" id="temp">--</div></div>
-    <div class="card"><h3>Humidity (%)</h3><div class="value" id="hum">--</div></div>
-    <div class="card"><h3>Methane (MQ4)</h3><div class="value" id="mq4">--</div></div>
-    <div class="card"><h3>CO₂ (MQ135)</h3><div class="value" id="mq135">--</div></div>
+  <div class="container">
+    <h1>🔥 Forest Fire Detection Dashboard</h1>
+    <div id="data">
+      <div class="sensor" id="temp">Temperature: -- °C</div>
+      <div class="sensor" id="hum">Humidity: -- %</div>
+      <div class="sensor" id="mq4">Methane (MQ4): --</div>
+      <div class="sensor" id="mq135">CO2 (MQ135): --</div>
+      <div class="alert" id="alertLevel">Checking...</div>
+    </div>
   </div>
-  <div class="alert" id="fireAlert">🚨 Fire Risk Detected!</div>
-
-  <canvas id="chart" width="400" height="200"></canvas>
 
   <script>
-    const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-cREwXrVtnlBW5-K-0UWRWUidi_UgjrH7RKIDLWGXQDjRGJP5LHF-Looifn6YXfZHr7PAjP8eeaU/pub?output=csv';
-    const fireAlert = document.getElementById('fireAlert');
-    const tempEl = document.getElementById('temp');
-    const humEl = document.getElementById('hum');
-    const mq4El = document.getElementById('mq4');
-    const mq135El = document.getElementById('mq135');
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-cREwXrVtnlBW5-K-0UWRWUidi_UgjrH7RKIDLWGXQDjRGJP5LHF-Looifn6YXfZHr7PAjP8eeaU/pub?output=csv";
 
-    let chart = new Chart(document.getElementById("chart"), {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [
-          { label: 'Temperature', data: [], borderColor: 'orange', fill: false },
-          { label: 'Humidity', data: [], borderColor: 'blue', fill: false },
-          { label: 'MQ4', data: [], borderColor: 'green', fill: false },
-          { label: 'MQ135', data: [], borderColor: 'red', fill: false }
-        ]
-      },
-      options: { responsive: true }
-    });
+    function getData() {
+      fetch(SHEET_URL)
+        .then(res => res.text())
+        .then(csv => {
+          const rows = csv.trim().split("\n");
+          const latest = rows[rows.length - 1].split(",");
 
-    async function fetchData() {
-      const res = await fetch(sheetURL);
-      const data = await res.text();
-      const rows = data.trim().split('\n');
-      const lastRow = rows[rows.length - 1].split(',');
+          const methane = parseInt(latest[1]);
+          const co2 = parseInt(latest[2]);
+          const temperature = parseFloat(latest[3]);
+          const humidity = parseFloat(latest[4]);
 
-      const temp = parseFloat(lastRow[3]);
-      const hum = parseFloat(lastRow[4]);
-      const mq4 = parseInt(lastRow[1]);
-      const mq135 = parseInt(lastRow[2]);
-      const alert = lastRow[5];
+          document.getElementById("temp").innerText = `Temperature: ${temperature} °C`;
+          document.getElementById("hum").innerText = `Humidity: ${humidity} %`;
+          document.getElementById("mq4").innerText = `Methane (MQ4): ${methane}`;
+          document.getElementById("mq135").innerText = `CO2 (MQ135): ${co2}`;
 
-      tempEl.innerText = temp + "°C";
-      humEl.innerText = hum + "%";
-      mq4El.innerText = mq4;
-      mq135El.innerText = mq135;
+          const alertBox = document.getElementById("alertLevel");
 
-      fireAlert.style.display = (alert.trim() === "YES") ? "block" : "none";
-
-      let label = new Date().toLocaleTimeString();
-      chart.data.labels.push(label);
-      chart.data.datasets[0].data.push(temp);
-      chart.data.datasets[1].data.push(hum);
-      chart.data.datasets[2].data.push(mq4);
-      chart.data.datasets[3].data.push(mq135);
-      if (chart.data.labels.length > 10) {
-        chart.data.labels.shift();
-        chart.data.datasets.forEach(ds => ds.data.shift());
-      }
-      chart.update();
+          if (temperature > 45 || humidity < 20 || methane > 2000 || co2 > 1500) {
+            alertBox.innerText = "🔥 DANGER: High Fire Risk!";
+            alertBox.className = "alert danger";
+          } else if (temperature > 35 || humidity < 40 || methane > 1000 || co2 > 1000) {
+            alertBox.innerText = "⚠️ WARNING: Monitor Closely";
+            alertBox.className = "alert warning";
+          } else {
+            alertBox.innerText = "✅ SAFE: No Fire Risk";
+            alertBox.className = "alert safe";
+          }
+        })
+        .catch(err => console.error("Error fetching data", err));
     }
 
-    setInterval(fetchData, 10000); // Update every 10 seconds
-    fetchData(); // initial call
+    getData();
+    setInterval(getData, 10000); // update every 10 seconds
   </script>
 </body>
 </html>
