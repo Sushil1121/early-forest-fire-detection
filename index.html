@@ -3,93 +3,82 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Forest Fire Alert System</title>
+  <title>Forest Fire Detection Dashboard</title>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f0f4f8;
-      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
       padding: 20px;
-      color: #333;
-    }
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: white;
-      padding: 30px;
-      border-radius: 16px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      text-align: center;
     }
     h1 {
-      text-align: center;
-      color: #2a7f62;
+      color: #2d3436;
     }
-    .sensor {
-      margin: 20px 0;
-      font-size: 1.2rem;
+    .card {
+      background: white;
+      padding: 20px;
+      margin: 15px auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      max-width: 400px;
     }
     .alert {
-      padding: 20px;
-      text-align: center;
-      font-size: 1.5rem;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 18px;
       font-weight: bold;
-      border-radius: 10px;
+      color: white;
     }
-    .safe { background-color: #c8f7c5; color: #2d6a4f; }
-    .warning { background-color: #fff3cd; color: #856404; }
-    .danger { background-color: #f8d7da; color: #721c24; }
+    .safe { background-color: #2ecc71; }
+    .danger { background-color: #e74c3c; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🔥 Forest Fire Detection Dashboard</h1>
-    <div id="data">
-      <div class="sensor" id="temp">Temperature: -- °C</div>
-      <div class="sensor" id="hum">Humidity: -- %</div>
-      <div class="sensor" id="mq4">Methane (MQ4): --</div>
-      <div class="sensor" id="mq135">CO2 (MQ135): --</div>
-      <div class="alert" id="alertLevel">Checking...</div>
-    </div>
+
+  <h1>🌲 Forest Fire Detection Dashboard</h1>
+
+  <div class="card" id="sensorData">
+    <p><strong>Methane (MQ4):</strong> <span id="methane">--</span></p>
+    <p><strong>CO2 (MQ135):</strong> <span id="co2">--</span></p>
+    <p><strong>Temperature (°C):</strong> <span id="temperature">--</span></p>
+    <p><strong>Humidity (%):</strong> <span id="humidity">--</span></p>
+  </div>
+
+  <div class="card alert" id="alertBox">
+    Loading...
   </div>
 
   <script>
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-cREwXrVtnlBW5-K-0UWRWUidi_UgjrH7RKIDLWGXQDjRGJP5LHF-Looifn6YXfZHr7PAjP8eeaU/pub?output=csv";
+    const scriptURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-cREwXrVtnlBW5-K-0UWRWUidi_UgjrH7RKIDLWGXQDjRGJP5LHF-Looifn6YXfZHr7PAjP8eeaU/pub?gid=0&single=true&output=csv";
 
-    function getData() {
-      fetch(SHEET_URL)
-        .then(res => res.text())
-        .then(csv => {
-          const rows = csv.trim().split("\n");
-          const latest = rows[rows.length - 1].split(",");
+    async function fetchData() {
+      const res = await fetch(scriptURL);
+      const text = await res.text();
+      const rows = text.trim().split('\n').slice(1);
+      const lastRow = rows[rows.length - 1].split(',');
 
-          const methane = parseInt(latest[1]);
-          const co2 = parseInt(latest[2]);
-          const temperature = parseFloat(latest[3]);
-          const humidity = parseFloat(latest[4]);
+      const methane = parseInt(lastRow[0]);
+      const co2 = parseInt(lastRow[1]);
+      const temperature = parseFloat(lastRow[2]);
+      const humidity = parseFloat(lastRow[3]);
 
-          document.getElementById("temp").innerText = `Temperature: ${temperature} °C`;
-          document.getElementById("hum").innerText = `Humidity: ${humidity} %`;
-          document.getElementById("mq4").innerText = `Methane (MQ4): ${methane}`;
-          document.getElementById("mq135").innerText = `CO2 (MQ135): ${co2}`;
+      document.getElementById("methane").innerText = methane;
+      document.getElementById("co2").innerText = co2;
+      document.getElementById("temperature").innerText = temperature;
+      document.getElementById("humidity").innerText = humidity;
 
-          const alertBox = document.getElementById("alertLevel");
-
-          if (temperature > 45 || humidity < 20 || methane > 2000 || co2 > 1500) {
-            alertBox.innerText = "🔥 DANGER: High Fire Risk!";
-            alertBox.className = "alert danger";
-          } else if (temperature > 35 || humidity < 40 || methane > 1000 || co2 > 1000) {
-            alertBox.innerText = "⚠️ WARNING: Monitor Closely";
-            alertBox.className = "alert warning";
-          } else {
-            alertBox.innerText = "✅ SAFE: No Fire Risk";
-            alertBox.className = "alert safe";
-          }
-        })
-        .catch(err => console.error("Error fetching data", err));
+      const alertBox = document.getElementById("alertBox");
+      if (methane > 2000 || co2 > 2000 || temperature > 55 || humidity < 50) {
+        alertBox.className = "card alert danger";
+        alertBox.innerText = "🔥 ALERT: High Risk of Forest Fire!";
+      } else {
+        alertBox.className = "card alert safe";
+        alertBox.innerText = "✅ SAFE: Environment is stable.";
+      }
     }
 
-    getData();
-    setInterval(getData, 10000); // update every 10 seconds
+    setInterval(fetchData, 5000);
+    fetchData();
   </script>
 </body>
 </html>
