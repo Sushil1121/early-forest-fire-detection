@@ -1,85 +1,92 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Forest Fire Monitoring Dashboard</title>
+  <title>Forest Fire Detection Dashboard</title>
+  <meta http-equiv="refresh" content="15">
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f2f2f2;
-      color: #333;
+      background: #f0f4f8;
+      padding: 20px;
       text-align: center;
-      padding: 20px;
     }
-    .card {
-      background: white;
-      margin: 20px auto;
-      padding: 20px;
-      max-width: 400px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    .container {
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      padding: 30px;
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    .value {
+      font-size: 20px;
+      margin: 10px 0;
     }
     .alert {
-      font-size: 1.5em;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 10px;
       font-weight: bold;
+      font-size: 18px;
     }
     .danger {
-      color: red;
+      background-color: #ffcccc;
+      color: #c0392b;
     }
     .safe {
-      color: green;
+      background-color: #ccffcc;
+      color: #27ae60;
     }
   </style>
 </head>
 <body>
-  <h1>🌲 Forest Fire Monitoring System</h1>
-  <div class="card">
-    <p><strong>Methane (MQ4):</strong> <span id="methane">-</span></p>
-    <p><strong>CO2 (MQ135):</strong> <span id="co2">-</span></p>
-    <p><strong>Temperature (°C):</strong> <span id="temperature">-</span></p>
-    <p><strong>Humidity (%):</strong> <span id="humidity">-</span></p>
-    <p class="alert">Fire Risk: <span id="alertStatus" class="safe">Checking...</span></p>
+  <div class="container">
+    <h1>🌲 Forest Fire Detection Dashboard</h1>
+    <div id="timestamp" class="value"></div>
+    <div id="methane" class="value"></div>
+    <div id="co2" class="value"></div>
+    <div id="temp" class="value"></div>
+    <div id="humidity" class="value"></div>
+    <div id="alert" class="alert"></div>
   </div>
 
   <script>
     const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-cREwXrVtnlBW5-K-0UWRWUidi_UgjrH7RKIDLWGXQDjRGJP5LHF-Looifn6YXfZHr7PAjP8eeaU/pub?output=csv";
 
-    async function fetchData() {
-      try {
-        const response = await fetch(sheetUrl);
-        const text = await response.text();
-        const rows = text.trim().split('\n').map(row => row.split(','));
-        const lastRow = rows[rows.length - 1];
+    fetch(sheetUrl)
+      .then(response => response.text())
+      .then(data => {
+        const rows = data.trim().split("\n");
+        const latest = rows[rows.length - 1].split(",");
 
-        const methane = lastRow[0];
-        const co2 = lastRow[1];
-        const temperature = lastRow[2];
-        const humidity = lastRow[3];
-        const alert = lastRow[4];
+        const timestamp = latest[0];
+        const methane = parseInt(latest[1]);
+        const co2 = parseInt(latest[2]);
+        const temperature = parseFloat(latest[3]);
+        const humidity = parseFloat(latest[4]);
+        const alert = latest[5].trim();
 
-        document.getElementById('methane').textContent = methane;
-        document.getElementById('co2').textContent = co2;
-        document.getElementById('temperature').textContent = temperature;
-        document.getElementById('humidity').textContent = humidity;
+        document.getElementById("timestamp").innerHTML = `<strong>📅 Timestamp:</strong> ${timestamp}`;
+        document.getElementById("methane").innerHTML = `<strong>🔥 Methane (MQ4):</strong> ${methane} ppm`;
+        document.getElementById("co2").innerHTML = `<strong>🌫 CO₂ (MQ135):</strong> ${co2} ppm`;
+        document.getElementById("temp").innerHTML = `<strong>🌡 Temperature:</strong> ${temperature} °C`;
+        document.getElementById("humidity").innerHTML = `<strong>💧 Humidity:</strong> ${humidity} %`;
 
-        const alertElem = document.getElementById('alertStatus');
-        alertElem.textContent = alert;
-
-        if (alert === "YES") {
-          alertElem.classList.add("danger");
-          alertElem.classList.remove("safe");
+        if (methane > 2000 || co2 > 2000 || temperature > 55 || humidity > 50 || alert === "YES") {
+          document.getElementById("alert").className = "alert danger";
+          document.getElementById("alert").innerText = "🚨 FIRE RISK DETECTED!";
         } else {
-          alertElem.classList.add("safe");
-          alertElem.classList.remove("danger");
+          document.getElementById("alert").className = "alert safe";
+          document.getElementById("alert").innerText = "✅ Safe – No fire risk";
         }
-
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    }
-
-    setInterval(fetchData, 5000);
-    fetchData(); // Initial call
+      })
+      .catch(error => {
+        document.getElementById("alert").innerHTML = "Error loading data";
+        console.error("Error fetching sheet:", error);
+      });
   </script>
 </body>
 </html>
