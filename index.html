@@ -4,39 +4,16 @@
   <title>Forest Fire Detection Dashboard</title>
   <meta http-equiv="refresh" content="60">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #eef2f3;
-      text-align: center;
-      padding: 20px;
-    }
+    body { font-family: Arial, sans-serif; background-color: #eef2f3; text-align: center; padding: 20px; }
     h1 { color: #2c3e50; }
-    .sensor-box {
-      background-color: #fff;
-      padding: 15px;
-      margin: 10px auto;
-      width: 350px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    .sensor-box { background-color: #fff; padding: 15px; margin: 10px auto; width: 360px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .alert, .safe, .warn {
+      font-size: 20px; font-weight: bold; color: white; padding: 10px; margin-top: 20px; border-radius: 10px;
     }
-    .alert {
-      font-size: 20px;
-      font-weight: bold;
-      color: white;
-      background-color: red;
-      padding: 10px;
-      margin-top: 20px;
-      border-radius: 10px;
-    }
-    .safe {
-      font-size: 20px;
-      font-weight: bold;
-      color: white;
-      background-color: green;
-      padding: 10px;
-      margin-top: 20px;
-      border-radius: 10px;
-    }
+    .alert { background-color: red; }
+    .safe { background-color: green; }
+    .warn { background-color: #f39c12; }
+    .muted { color: #555; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -48,80 +25,87 @@
 <div id="comparison-data"><p>Loading Comparison...</p></div>
 
 <script>
-  const sheetURL = "YOUR_GOOGLE_SHEET_CSV_LINK"; // Replace with your CSV link
-  let sat_temperature, sat_humidity, sat_methane, sat_co2;
-  let ground_temperature, ground_humidity, ground_methane, ground_co2;
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwxoWTW3IR5KyjLFTE-JD2esIAiLyGciFTwckhoDfT4iyn7ouY2rIPqfso6pVzQLuk/exec";
 
-  // Fetch Satellite Data from Google Sheet
+  let sat = { temperature: undefined, humidity: undefined, methane: undefined, co2: undefined };
+  let ground = { temperature: undefined, humidity: undefined, methane: undefined, co2: undefined };
+
+  // === Fetch live Satellite Data from your Apps Script (JSON) ===
   function loadSatelliteData() {
-    fetch(sheetURL)
-      .then(response => response.text())
-      .then(csv => {
-        const rows = csv.trim().split("\n");
-        const lastRow = rows[rows.length - 1].split(",");
+    fetch(APPS_SCRIPT_URL + "?mode=latest", { cache: "no-cache" })
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.temperature !== undefined) {
+          sat.temperature = Number(d.temperature);
+          sat.humidity = Number(d.humidity);
+          sat.methane = Number(d.methane);
+          sat.co2 = Number(d.co2);
 
-        // Assuming CSV columns: temperature, humidity, methane, co2
-        sat_temperature = parseFloat(lastRow[0]);
-        sat_humidity = parseFloat(lastRow[1]);
-        sat_methane = parseFloat(lastRow[2]);
-        sat_co2 = parseFloat(lastRow[3]);
-
-        document.getElementById("satellite-data").innerHTML = `
-          <div class="sensor-box">
-            <h2>🛰️ Satellite Data</h2>
-            <p>🌡️ Temperature: ${sat_temperature} °C</p>
-            <p>💧 Humidity: ${sat_humidity} %</p>
-            <p>🟤 Methane: ${sat_methane}</p>
-            <p>⚫ CO₂: ${sat_co2}</p>
-          </div>
-        `;
-
-        compareData();
+          document.getElementById("satellite-data").innerHTML = `
+            <div class="sensor-box">
+              <h2>🛰️ Satellite Data (Live)</h2>
+              <p>🌡️ Temperature: ${sat.temperature} °C</p>
+              <p>💧 Humidity: ${sat.humidity} %</p>
+              <p>🟤 Methane: ${sat.methane}</p>
+              <p>⚫ CO₂: ${sat.co2}</p>
+              <p class="muted">${d.timestamp ? "Updated: " + new Date(d.timestamp).toLocaleString() : ""}</p>
+            </div>
+          `;
+          compareData();
+        } else {
+          document.getElementById("satellite-data").innerHTML = `<div class="sensor-box"><h2>🛰️ Satellite Data</h2><p>No data yet.</p></div>`;
+        }
       })
-      .catch(error => {
-        document.getElementById("satellite-data").innerHTML = "<p>Error loading satellite data.</p>";
-        console.error("Fetch error:", error);
+      .catch(err => {
+        console.error(err);
+        document.getElementById("satellite-data").innerHTML = `<div class="sensor-box"><h2>🛰️ Satellite Data</h2><p>Error loading satellite data.</p></div>`;
       });
   }
 
-  // Generate random Ground Data every 20 seconds
+  // === Generate Ground Data every 20s (simulate) ===
   function generateGroundData() {
-    // Random values near satellite data for realism
-    ground_temperature = sat_temperature + (Math.random() * 4 - 2);
-    ground_humidity = sat_humidity + (Math.random() * 4 - 2);
-    ground_methane = sat_methane + Math.floor(Math.random() * 200 - 100);
-    ground_co2 = sat_co2 + Math.floor(Math.random() * 200 - 100);
+    if (sat.temperature === undefined) {
+      document.getElementById("ground-data").innerHTML = `<div class="sensor-box"><h2>🌍 Ground Data</h2><p>Waiting for satellite data...</p></div>`;
+      return;
+    }
+    ground.temperature = sat.temperature + (Math.random() * 4 - 2);
+    ground.humidity    = sat.humidity    + (Math.random() * 4 - 2);
+    ground.methane     = sat.methane     + Math.floor(Math.random() * 200 - 100);
+    ground.co2         = sat.co2         + Math.floor(Math.random() * 200 - 100);
 
     document.getElementById("ground-data").innerHTML = `
       <div class="sensor-box">
-        <h2>🌍 Ground Data</h2>
-        <p>🌡️ Temperature: ${ground_temperature.toFixed(2)} °C</p>
-        <p>💧 Humidity: ${ground_humidity.toFixed(2)} %</p>
-        <p>🟤 Methane: ${ground_methane}</p>
-        <p>⚫ CO₂: ${ground_co2}</p>
+        <h2>🌍 Ground Data (Simulated)</h2>
+        <p>🌡️ Temperature: ${ground.temperature.toFixed(2)} °C</p>
+        <p>💧 Humidity: ${ground.humidity.toFixed(2)} %</p>
+        <p>🟤 Methane: ${ground.methane}</p>
+        <p>⚫ CO₂: ${ground.co2}</p>
+        <p class="muted">Auto-updates every 20s</p>
       </div>
     `;
-
     compareData();
   }
 
-  // Compare Satellite and Ground Data
+  // === Compare & Show Fire Risk only when matched ===
   function compareData() {
-    if (sat_temperature === undefined) return; // Wait for satellite data
+    if ([sat.temperature, ground.temperature].includes(undefined)) return;
 
-    const tolerance = 0.5;
+    const toleranceTemp = 0.5;
+    const toleranceHum  = 0.5;
+    const toleranceGas  = 5;   // gases can be noisy; adjust as you like
+
     const match =
-      Math.abs(sat_temperature - ground_temperature) <= tolerance &&
-      Math.abs(sat_humidity - ground_humidity) <= tolerance &&
-      Math.abs(sat_methane - ground_methane) <= tolerance &&
-      Math.abs(sat_co2 - ground_co2) <= tolerance;
+      Math.abs(sat.temperature - ground.temperature) <= toleranceTemp &&
+      Math.abs(sat.humidity    - ground.humidity)    <= toleranceHum  &&
+      Math.abs(sat.methane     - ground.methane)     <= toleranceGas  &&
+      Math.abs(sat.co2         - ground.co2)         <= toleranceGas;
 
     if (match) {
       const fireRisk =
-        sat_methane > 2000 ||
-        sat_co2 > 2000 ||
-        sat_temperature > 55 ||
-        sat_humidity > 50;
+        sat.methane > 2000 ||
+        sat.co2 > 2000 ||
+        sat.temperature > 55 ||
+        sat.humidity > 50;
 
       document.getElementById("comparison-data").innerHTML = `
         <div class="${fireRisk ? 'alert' : 'safe'}">
@@ -130,17 +114,16 @@
       `;
     } else {
       document.getElementById("comparison-data").innerHTML = `
-        <div class="alert">Data Mismatch ⚠️</div>
+        <div class="warn">Data Mismatch ⚠️</div>
       `;
     }
   }
 
-  // Initial load
+  // Initial run & intervals
   loadSatelliteData();
-  setTimeout(generateGroundData, 2000); // Generate ground data after satellite is loaded
-
-  // Refresh ground data every 20 seconds
-  setInterval(generateGroundData, 20000);
+  setTimeout(generateGroundData, 1500);
+  setInterval(loadSatelliteData, 10000);   // Satellite refresh every 10s
+  setInterval(generateGroundData, 20000);  // Ground refresh every 20s
 </script>
 
 </body>
