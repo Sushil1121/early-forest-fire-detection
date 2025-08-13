@@ -49,8 +49,16 @@
 
 <h1>🔥 Forest Fire Detection Dashboard</h1>
 
-<div id="data">
-  <p>Loading data...</p>
+<div id="satellite-data">
+  <p>Loading Satellite Data...</p>
+</div>
+
+<div id="ground-data">
+  <p>Loading Ground Data...</p>
+</div>
+
+<div id="comparison-data">
+  <p>Loading Comparison...</p>
 </div>
 
 <script>
@@ -61,46 +69,58 @@
     .then(csv => {
       const rows = csv.trim().split("\n");
 
-      // Assuming last two rows contain the two data sets
-      const lastRow = rows[rows.length - 1].split(",");
-      const secondLastRow = rows[rows.length - 2].split(",");
+      // Assuming last row = ground data, second last row = satellite data
+      const satelliteRow = rows[rows.length - 2].split(",");
+      const groundRow = rows[rows.length - 1].split(",");
 
-      // Dataset 1
-      const humidity1 = parseFloat(secondLastRow[0]);
-      const co2_1 = parseFloat(secondLastRow[1]);
-      const methane1 = parseFloat(secondLastRow[2]);
+      // Satellite Data
+      const sat_humidity = parseFloat(satelliteRow[0]);
+      const sat_co2 = parseFloat(satelliteRow[1]);
+      const sat_methane = parseFloat(satelliteRow[2]);
 
-      // Dataset 2
-      const humidity2 = parseFloat(lastRow[0]);
-      const co2_2 = parseFloat(lastRow[1]);
-      const methane2 = parseFloat(lastRow[2]);
+      // Ground Data
+      const ground_humidity = parseFloat(groundRow[0]);
+      const ground_co2 = parseFloat(groundRow[1]);
+      const ground_methane = parseFloat(groundRow[2]);
 
-      // Compare values (allowing small tolerance to avoid noise)
-      const tolerance = 0.5; // Adjust tolerance if needed
-      const dataMismatch =
-        Math.abs(humidity1 - humidity2) > tolerance ||
-        Math.abs(co2_1 - co2_2) > tolerance ||
-        Math.abs(methane1 - methane2) > tolerance;
+      // Tolerance for matching
+      const tolerance = 0.5;
+      const mismatch =
+        Math.abs(sat_humidity - ground_humidity) > tolerance ||
+        Math.abs(sat_co2 - ground_co2) > tolerance ||
+        Math.abs(sat_methane - ground_methane) > tolerance;
 
-      const html = `
+      // Satellite HTML
+      document.getElementById("satellite-data").innerHTML = `
         <div class="sensor-box">
-          <h2>💧 Humidity Set 1: ${humidity1} % | Set 2: ${humidity2} %</h2>
-        </div>
-        <div class="sensor-box">
-          <h2>⚫ CO₂ Set 1: ${co2_1} | Set 2: ${co2_2}</h2>
-        </div>
-        <div class="sensor-box">
-          <h2>🟤 Methane Set 1: ${methane1} | Set 2: ${methane2}</h2>
-        </div>
-        <div class="${dataMismatch ? 'alert' : 'safe'}">
-          Data Status: ${dataMismatch ? "MISMATCH ⚠️" : "MATCH ✅"}
+          <h2>🛰️ Satellite Data</h2>
+          <p>💧 Humidity: ${sat_humidity} %</p>
+          <p>⚫ CO₂: ${sat_co2}</p>
+          <p>🟤 Methane: ${sat_methane}</p>
         </div>
       `;
 
-      document.getElementById("data").innerHTML = html;
+      // Ground HTML
+      document.getElementById("ground-data").innerHTML = `
+        <div class="sensor-box">
+          <h2>🌍 Ground Data</h2>
+          <p>💧 Humidity: ${ground_humidity} %</p>
+          <p>⚫ CO₂: ${ground_co2}</p>
+          <p>🟤 Methane: ${ground_methane}</p>
+        </div>
+      `;
+
+      // Comparison HTML
+      document.getElementById("comparison-data").innerHTML = `
+        <div class="${mismatch ? 'alert' : 'safe'}">
+          Data Match Status: ${mismatch ? "MISMATCH ⚠️" : "MATCH ✅"}
+        </div>
+      `;
     })
     .catch(error => {
-      document.getElementById("data").innerHTML = "<p>Error loading data.</p>";
+      document.getElementById("satellite-data").innerHTML = "<p>Error loading satellite data.</p>";
+      document.getElementById("ground-data").innerHTML = "<p>Error loading ground data.</p>";
+      document.getElementById("comparison-data").innerHTML = "<p>Error loading comparison.</p>";
       console.error("Fetch error:", error);
     });
 </script>
