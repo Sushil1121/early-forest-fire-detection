@@ -19,7 +19,7 @@
       background-color: #fff;
       padding: 15px;
       margin: 10px auto;
-      width: 300px;
+      width: 350px;
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
@@ -54,36 +54,46 @@
 </div>
 
 <script>
-  const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-cREwXrVtnlBW5-K-0UWRWUidi_UgjrH7RKIDLWGXQDjRGJP5LHF-Looifn6YXfZHr7PAjP8eeaU/pub?output=csv";
+  const sheetURL = "YOUR_GOOGLE_SHEET_CSV_LINK"; // Replace with your CSV link
 
   fetch(sheetURL)
     .then(response => response.text())
     .then(csv => {
       const rows = csv.trim().split("\n");
+
+      // Assuming last two rows contain the two data sets
       const lastRow = rows[rows.length - 1].split(",");
+      const secondLastRow = rows[rows.length - 2].split(",");
 
-      const temperature = parseFloat(lastRow[0]);
-      const humidity = parseFloat(lastRow[1]);
-      const methane = parseFloat(lastRow[2]);
-      const co2 = parseFloat(lastRow[3]);
+      // Dataset 1
+      const humidity1 = parseFloat(secondLastRow[0]);
+      const co2_1 = parseFloat(secondLastRow[1]);
+      const methane1 = parseFloat(secondLastRow[2]);
 
-      const fireRisk = (methane > 2000 || co2 > 2000 || temperature > 55 || humidity > 50);
+      // Dataset 2
+      const humidity2 = parseFloat(lastRow[0]);
+      const co2_2 = parseFloat(lastRow[1]);
+      const methane2 = parseFloat(lastRow[2]);
+
+      // Compare values (allowing small tolerance to avoid noise)
+      const tolerance = 0.5; // Adjust tolerance if needed
+      const dataMismatch =
+        Math.abs(humidity1 - humidity2) > tolerance ||
+        Math.abs(co2_1 - co2_2) > tolerance ||
+        Math.abs(methane1 - methane2) > tolerance;
 
       const html = `
         <div class="sensor-box">
-          <h2>🌡️ Temperature: ${temperature} °C</h2>
+          <h2>💧 Humidity Set 1: ${humidity1} % | Set 2: ${humidity2} %</h2>
         </div>
         <div class="sensor-box">
-          <h2>💧 Humidity: ${humidity} %</h2>
+          <h2>⚫ CO₂ Set 1: ${co2_1} | Set 2: ${co2_2}</h2>
         </div>
         <div class="sensor-box">
-          <h2>🟤 Methane (MQ4): ${methane}</h2>
+          <h2>🟤 Methane Set 1: ${methane1} | Set 2: ${methane2}</h2>
         </div>
-        <div class="sensor-box">
-          <h2>⚫ CO2 (MQ135): ${co2}</h2>
-        </div>
-        <div class="${fireRisk ? 'alert' : 'safe'}">
-          Fire Risk: ${fireRisk ? "DETECTED 🔥" : "SAFE ✅"}
+        <div class="${dataMismatch ? 'alert' : 'safe'}">
+          Data Status: ${dataMismatch ? "MISMATCH ⚠️" : "MATCH ✅"}
         </div>
       `;
 
