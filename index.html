@@ -13,6 +13,16 @@
     .safe { background-color: green; }
     .warn { background-color: #f39c12; }
     .muted { color: #555; font-size: 12px; }
+    pre.csv-data {
+      background: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      text-align: left;
+      overflow-x: auto;
+      max-width: 90%;
+      margin: 20px auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 <body>
@@ -22,12 +32,14 @@
 <div id="satellite-data"><p>Loading Satellite Data...</p></div>
 <div id="ground-data"><p>Loading Ground Data...</p></div>
 <div id="comparison-data"><p>Loading Comparison...</p></div>
+<h2>📄 CSV Data Log</h2>
+<pre id="csv-display" class="csv-data">timestamp,sat_temp,sat_hum,sat_methane,sat_co2,ground_temp,ground_hum,ground_methane,ground_co2,risk_status</pre>
 
 <script>
   let sat = { temperature: 0, humidity: 0, methane: 0, co2: 0 };
   let ground = { temperature: 0, humidity: 0, methane: 0, co2: 0 };
+  let csvData = "timestamp,sat_temp,sat_hum,sat_methane,sat_co2,ground_temp,ground_hum,ground_methane,ground_co2,risk_status\n";
 
-  // Generate random satellite data
   function generateSatelliteData() {
     sat.temperature = getRandomValue(40, 60);
     sat.humidity = getRandomValue(30, 60);
@@ -46,16 +58,13 @@
     `;
   }
 
-  // Generate ground data — sometimes matches satellite values
   function generateGroundData() {
-    if (Math.random() < 0.4) {  
-      // 40% chance values match closely
+    if (Math.random() < 0.4) {
       ground.temperature = sat.temperature + getRandomValue(-0.3, 0.3);
       ground.humidity = sat.humidity + getRandomValue(-0.3, 0.3);
       ground.methane = sat.methane + getRandomValue(-3, 3);
       ground.co2 = sat.co2 + getRandomValue(-3, 3);
     } else {
-      // Otherwise random values
       ground.temperature = getRandomValue(40, 60);
       ground.humidity = getRandomValue(30, 60);
       ground.methane = getRandomValue(1800, 2500);
@@ -76,7 +85,6 @@
     compareData();
   }
 
-  // Compare satellite and ground data
   function compareData() {
     const toleranceTemp = 0.5;
     const toleranceHum  = 0.5;
@@ -88,6 +96,7 @@
       Math.abs(sat.methane     - ground.methane)     <= toleranceGas  &&
       Math.abs(sat.co2         - ground.co2)         <= toleranceGas;
 
+    let riskStatus = "SAFE";
     if (match) {
       const fireRisk =
         sat.methane > 2000 ||
@@ -95,23 +104,32 @@
         sat.temperature > 55 ||
         sat.humidity > 50;
 
+      riskStatus = fireRisk ? "RISK" : "SAFE";
+
       document.getElementById("comparison-data").innerHTML = `
         <div class="${fireRisk ? 'alert' : 'safe'}">
           Fire Risk: ${fireRisk ? "DETECTED 🔥" : "SAFE ✅"}
         </div>
       `;
     } else {
+      riskStatus = "MISMATCH";
       document.getElementById("comparison-data").innerHTML = `
-        <div class="warn">EVERY THING IS FINE</div>
+        <div class="warn">EVERYTHING IS FINE</div>
       `;
     }
+
+    // Append to CSV log
+    const timestamp = new Date().toISOString();
+    csvData += `${timestamp},${sat.temperature.toFixed(2)},${sat.humidity.toFixed(2)},${sat.methane.toFixed(0)},${sat.co2.toFixed(0)},${ground.temperature.toFixed(2)},${ground.humidity.toFixed(2)},${ground.methane.toFixed(0)},${ground.co2.toFixed(0)},${riskStatus}\n`;
+
+    document.getElementById("csv-display").textContent = csvData;
   }
 
   function getRandomValue(min, max) {
     return Math.random() * (max - min) + min;
   }
 
-  // Initial data
+  // First run
   generateSatelliteData();
   generateGroundData();
 
@@ -124,4 +142,3 @@
 
 </body>
 </html>
-
