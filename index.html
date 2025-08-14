@@ -2,7 +2,6 @@
 <html>
 <head>
   <title>Forest Fire Detection Dashboard</title>
-  <meta http-equiv="refresh" content="60">
   <style>
     body { font-family: Arial, sans-serif; background-color: #eef2f3; text-align: center; padding: 20px; }
     h1 { color: #2c3e50; }
@@ -25,74 +24,63 @@
 <div id="comparison-data"><p>Loading Comparison...</p></div>
 
 <script>
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwxoWTW3IR5KyjLFTE-JD2esIAiLyGciFTwckhoDfT4iyn7ouY2rIPqfso6pVzQLuk/exec";
+  let sat = { temperature: 0, humidity: 0, methane: 0, co2: 0 };
+  let ground = { temperature: 0, humidity: 0, methane: 0, co2: 0 };
 
-  let sat = { temperature: undefined, humidity: undefined, methane: undefined, co2: undefined };
-  let ground = { temperature: undefined, humidity: undefined, methane: undefined, co2: undefined };
+  // Generate random satellite data
+  function generateSatelliteData() {
+    sat.temperature = getRandomValue(40, 60);
+    sat.humidity = getRandomValue(30, 60);
+    sat.methane = getRandomValue(1800, 2500);
+    sat.co2 = getRandomValue(1800, 2500);
 
-  // === Fetch live Satellite Data from your Apps Script (JSON) ===
-  function loadSatelliteData() {
-    fetch(APPS_SCRIPT_URL + "?mode=latest", { cache: "no-cache" })
-      .then(r => r.json())
-      .then(d => {
-        if (d && d.temperature !== undefined) {
-          sat.temperature = Number(d.temperature);
-          sat.humidity = Number(d.humidity);
-          sat.methane = Number(d.methane);
-          sat.co2 = Number(d.co2);
-
-          document.getElementById("satellite-data").innerHTML = `
-            <div class="sensor-box">
-              <h2>🛰️ Satellite Data (Live)</h2>
-              <p>🌡️ Temperature: ${sat.temperature} °C</p>
-              <p>💧 Humidity: ${sat.humidity} %</p>
-              <p>🟤 Methane: ${sat.methane}</p>
-              <p>⚫ CO₂: ${sat.co2}</p>
-              <p class="muted">${d.timestamp ? "Updated: " + new Date(d.timestamp).toLocaleString() : ""}</p>
-            </div>
-          `;
-          compareData();
-        } else {
-          document.getElementById("satellite-data").innerHTML = `<div class="sensor-box"><h2>🛰️ Satellite Data</h2><p>No data yet.</p></div>`;
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        document.getElementById("satellite-data").innerHTML = `<div class="sensor-box"><h2>🛰️ Satellite Data</h2><p>Error loading satellite data.</p></div>`;
-      });
+    document.getElementById("satellite-data").innerHTML = `
+      <div class="sensor-box">
+        <h2>🛰️ Satellite Data</h2>
+        <p>🌡️ Temperature: ${sat.temperature.toFixed(2)} °C</p>
+        <p>💧 Humidity: ${sat.humidity.toFixed(2)} %</p>
+        <p>🟤 Methane: ${sat.methane.toFixed(0)}</p>
+        <p>⚫ CO₂: ${sat.co2.toFixed(0)}</p>
+        <p class="muted">Updated: ${new Date().toLocaleTimeString()}</p>
+      </div>
+    `;
   }
 
-  // === Generate Ground Data every 20s (simulate) ===
+  // Generate ground data — sometimes matches satellite values
   function generateGroundData() {
-    if (sat.temperature === undefined) {
-      document.getElementById("ground-data").innerHTML = `<div class="sensor-box"><h2>🌍 Ground Data</h2><p>Waiting for satellite data...</p></div>`;
-      return;
+    if (Math.random() < 0.4) {  
+      // 40% chance values match closely
+      ground.temperature = sat.temperature + getRandomValue(-0.3, 0.3);
+      ground.humidity = sat.humidity + getRandomValue(-0.3, 0.3);
+      ground.methane = sat.methane + getRandomValue(-3, 3);
+      ground.co2 = sat.co2 + getRandomValue(-3, 3);
+    } else {
+      // Otherwise random values
+      ground.temperature = getRandomValue(40, 60);
+      ground.humidity = getRandomValue(30, 60);
+      ground.methane = getRandomValue(1800, 2500);
+      ground.co2 = getRandomValue(1800, 2500);
     }
-    ground.temperature = sat.temperature + (Math.random() * 4 - 2);
-    ground.humidity    = sat.humidity    + (Math.random() * 4 - 2);
-    ground.methane     = sat.methane     + Math.floor(Math.random() * 200 - 100);
-    ground.co2         = sat.co2         + Math.floor(Math.random() * 200 - 100);
 
     document.getElementById("ground-data").innerHTML = `
       <div class="sensor-box">
-        <h2>🌍 Ground Data (Simulated)</h2>
+        <h2>🌍 Ground Data</h2>
         <p>🌡️ Temperature: ${ground.temperature.toFixed(2)} °C</p>
         <p>💧 Humidity: ${ground.humidity.toFixed(2)} %</p>
-        <p>🟤 Methane: ${ground.methane}</p>
-        <p>⚫ CO₂: ${ground.co2}</p>
+        <p>🟤 Methane: ${ground.methane.toFixed(0)}</p>
+        <p>⚫ CO₂: ${ground.co2.toFixed(0)}</p>
         <p class="muted">Auto-updates every 20s</p>
       </div>
     `;
+
     compareData();
   }
 
-  // === Compare & Show Fire Risk only when matched ===
+  // Compare satellite and ground data
   function compareData() {
-    if ([sat.temperature, ground.temperature].includes(undefined)) return;
-
     const toleranceTemp = 0.5;
     const toleranceHum  = 0.5;
-    const toleranceGas  = 5;   // gases can be noisy; adjust as you like
+    const toleranceGas  = 5;
 
     const match =
       Math.abs(sat.temperature - ground.temperature) <= toleranceTemp &&
@@ -119,11 +107,19 @@
     }
   }
 
-  // Initial run & intervals
-  loadSatelliteData();
-  setTimeout(generateGroundData, 1500);
-  setInterval(loadSatelliteData, 10000);   // Satellite refresh every 10s
-  setInterval(generateGroundData, 20000);  // Ground refresh every 20s
+  function getRandomValue(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+
+  // Initial data
+  generateSatelliteData();
+  generateGroundData();
+
+  // Update every 20 seconds
+  setInterval(() => {
+    generateSatelliteData();
+    generateGroundData();
+  }, 20000);
 </script>
 
 </body>
